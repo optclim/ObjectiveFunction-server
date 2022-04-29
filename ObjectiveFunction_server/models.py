@@ -39,7 +39,17 @@ class Study(db.Model):
     __tablename__ = 'studies'
 
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String, unique=True)
+    name = db.Column(db.String)
     app_id = db.Column(db.Integer, db.ForeignKey('apps.id'))
 
     app = db.relationship("App", back_populates="studies")
+
+    __table_args__ = (
+        db.UniqueConstraint('name', 'app_id', name='_unique_params'), )
+
+    @property
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'app': self.app.name}

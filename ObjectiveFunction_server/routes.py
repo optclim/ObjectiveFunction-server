@@ -1,7 +1,9 @@
-from .application import app
+import logging
+
+from .application import app, db
 from flask_httpauth import HTTPBasicAuth
-from flask import jsonify, g
-from .models import App
+from flask import jsonify, request, abort, g
+from .models import App, Study
 
 auth = HTTPBasicAuth()
 
@@ -42,3 +44,43 @@ def get_all_studies():
     for study in g.objfun_app.studies:
         results.append(study.to_dict)
     return jsonify({'data': results}), 200
+
+
+@app.route('/api/create_study', methods=['POST'])
+@auth.login_required
+def create_study():
+    """create a new study
+    .. :quickref: create_study; create a new study
+    :<json string name: the name of the study
+    :status 400: when name is missing
+    :status 409: when study already exists
+    """
+    if not request.get_json() or 'name' not in request.get_json():
+        abort(400)
+
+    data = request.get_json()
+    study = Study(name=data['name'], app=g.objfun_app)
+    db.session.add(study)
+    db.session.commit()
+
+    return jsonify(study.to_dict), 201
+
+
+@app.route('/api/studies/<string:name>', methods=['GET'])
+@auth.login_required
+def get_study(name):
+    """get information about a particular study
+    .. :quickref: studies; get information about a particular study
+    :param name: name of the study
+    :type name: string
+    :query info: request particular information about the study.
+    :status 404: when the study does not exist
+    :status 404: when unkown information is requested
+    :status 200: the call successfully returned a json string
+    """
+    study = Study.query.filter_by(name=name, app=g.objfun_app).first()
+    if not study:
+        logging.error(f'no study {name} for app {g.objfun_app.name}')
+        abort(404)
+
+    return jsonify(study.to_dict), 200
