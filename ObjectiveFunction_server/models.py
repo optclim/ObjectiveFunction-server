@@ -43,6 +43,8 @@ class Study(db.Model):
     app_id = db.Column(db.Integer, db.ForeignKey('apps.id'))
 
     app = db.relationship("App", back_populates="studies")
+    parameters = db.relationship("Parameter", order_by="Parameter.name",
+                                 back_populates="study")
 
     __table_args__ = (
         db.UniqueConstraint('name', 'app_id', name='_unique_params'), )
@@ -53,3 +55,61 @@ class Study(db.Model):
             'id': self.id,
             'name': self.name,
             'app': self.app.name}
+
+
+class Parameter(db.Model):
+    __tablename__ = 'parameters'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String)
+    study_id = db.Column(db.Integer, db.ForeignKey('studies.id'))
+    type = db.Column(db.String)
+
+    study = db.relationship("Study", back_populates="parameters")
+
+    __table_args__ = (
+        db.UniqueConstraint('name', 'study_id', name='_unique_params'), )
+
+    __mapper_args__ = {
+        'polymorphic_identity': 'parameter',
+        'polymorphic_on': type}
+
+
+class ParameterInt(Parameter):
+    __tablename__ = 'parameters_int'
+
+    id = db.Column(db.Integer, db.ForeignKey('parameters.id'),
+                   primary_key=True)
+    minv = db.Column(db.Integer)
+    maxv = db.Column(db.Integer)
+
+    __mapper_args__ = {
+        'polymorphic_identity': 'parameterint'}
+
+    @property
+    def to_dict(self):
+        return {
+            'type': 'int',
+            'minv': self.minv,
+            'maxv': self.maxv}
+
+
+class ParameterFloat(Parameter):
+    __tablename__ = 'parameters_float'
+
+    id = db.Column(db.Integer, db.ForeignKey('parameters.id'),
+                   primary_key=True)
+    minv = db.Column(db.Float)
+    maxv = db.Column(db.Float)
+    resolution = db.Column(db.Float)
+
+    __mapper_args__ = {
+        'polymorphic_identity': 'parameterfloat'}
+
+    @property
+    def to_dict(self):
+        return {
+            'type': 'float',
+            'minv': self.minv,
+            'maxv': self.maxv,
+            'resolution': self.resolution}
