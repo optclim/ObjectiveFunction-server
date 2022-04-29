@@ -45,6 +45,7 @@ class Study(db.Model):
     app = db.relationship("App", back_populates="studies")
     parameters = db.relationship("Parameter", order_by="Parameter.name",
                                  back_populates="study")
+    scenarios = db.relationship("Scenario", back_populates="study")
 
     __table_args__ = (
         db.UniqueConstraint('name', 'app_id', name='_unique_params'), )
@@ -54,7 +55,8 @@ class Study(db.Model):
         return {
             'id': self.id,
             'name': self.name,
-            'app': self.app.name}
+            'app': self.app.name,
+            'num_scenarios': len(self.scenarios)}
 
 
 class Parameter(db.Model):
@@ -113,3 +115,17 @@ class ParameterFloat(Parameter):
             'minv': self.minv,
             'maxv': self.maxv,
             'resolution': self.resolution}
+
+
+class Scenario(db.Model):
+    __tablename__ = 'scenarios'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String)
+    study_id = db.Column(db.Integer, db.ForeignKey('studies.id'))
+
+    study = db.relationship("Study", back_populates="scenarios")
+    #runs = relationship("DBRun", back_populates="scenario")
+
+    __table_args__ = (db.UniqueConstraint('name', 'study_id',
+                                          name='_unique_scenario'), )

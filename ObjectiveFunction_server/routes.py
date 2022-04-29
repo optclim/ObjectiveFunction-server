@@ -3,7 +3,7 @@ import logging
 from .application import app, db
 from flask_httpauth import HTTPBasicAuth
 from flask import jsonify, request, abort, g
-from .models import App, Study, ParameterInt, ParameterFloat
+from .models import App, Study, ParameterInt, ParameterFloat, Scenario
 
 auth = HTTPBasicAuth()
 
@@ -109,7 +109,7 @@ def get_study_params(name):
     :status 404: when the study does not exist
     :status 200: the call successfully returned a json string
     """
-    study = Study.query.filter_by(name=name, app=g.objfun_app).first()
+    study = Study.query.filter_by(name=name, app=g.objfun_app).one_or_none()
     if not study:
         logging.error(f'no study {name} for app {g.objfun_app.name}')
         abort(404)
@@ -119,3 +119,37 @@ def get_study_params(name):
         params[p.name] = p.to_dict
 
     return jsonify(params), 200
+
+
+@app.route('/api/studies/<string:study>/create_scenario', methods=['POST'])
+@auth.login_required
+def create_scenario(study):
+    """create a new study
+    .. :quickref: create_scenario; create a new scenario for study
+    :param name: name of the study
+    :<json string name: the name of the scenario
+    :status 400: when name is missing
+    :status 404: when the study does not exist
+    :status 409: when scenario already exists
+    """
+    if not request.get_json() or 'name' not in request.get_json():
+        abort(400)
+    name = request.get_json()['name']
+
+    study = Study.query.filter_by(name=study,
+                                  app=g.objfun_app).one_or_none()
+    if not study:
+        logging.error(f'no study {name} for app {g.objfun_app.name}')
+        abort(404)
+
+    # check if scenario already exists
+    scenario = Scenario.query.filter_by(
+        study=study, name=name).one_or_none()
+    if scenario:
+        abort(409)
+
+    scenario = Scenario(study=study, name=name)
+    db.session.add(scenario)
+    db.session.commit()
+
+    return '', 201
