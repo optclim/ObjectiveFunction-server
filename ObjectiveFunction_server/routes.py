@@ -227,9 +227,9 @@ def lookup_run(study, name):
     :status 201: the call successfully returned a json string
     """
 
-    if not request.get_json():
+    if not request.get_json() or 'parameters' not in request.get_json():
         abort(400)
-    data = request.get_json()
+    data = request.get_json()['parameters']
 
     study = Study.query.filter_by(name=study, app=g.objfun_app).one_or_none()
     if not study:
