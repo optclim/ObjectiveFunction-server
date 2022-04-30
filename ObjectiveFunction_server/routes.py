@@ -213,6 +213,43 @@ def get_all_runs(study, name):
     return jsonify({'data': results}), 200
 
 
+@app.route('/api/studies/<string:study>/scenarios/<string:name>/get_run',
+           methods=['POST'])
+@auth.login_required
+def get_run(study, name):
+    """get a run of a particular scenario
+    .. :quickref: studies; get information about a particular run
+    :param study: name of the study
+    :param name: name of the scenario
+    :type name: string
+    :status 400: when name or runtype is missing
+    :status 404: when the scenario does not exist
+    :status 201: the call successfully returned a json string
+    """
+
+    if not request.get_json() or 'parameters' not in request.get_json():
+        abort(400)
+    data = request.get_json()['parameters']
+
+    study = Study.query.filter_by(name=study, app=g.objfun_app).one_or_none()
+    if not study:
+        msg = f'no study {study} for app {g.objfun_app.name}'
+        logging.error(msg)
+        abort(404, msg)
+    scenario = Scenario.query.filter_by(name=name, study=study).one_or_none()
+    if not scenario:
+        msg = (f'no scenario {scenario} for study {study}'
+               f' for app {g.objfun_app.name}')
+        logging.error(msg)
+        abort(404, msg)
+
+    try:
+        run = scenario.get_run(data)
+    except LookupError:
+        abort(404, 'no such run')
+
+    return jsonify(run.to_dict), 201
+
 @app.route('/api/studies/<string:study>/scenarios/<string:name>/lookup_run',
            methods=['POST'])
 @auth.login_required
@@ -233,13 +270,15 @@ def lookup_run(study, name):
 
     study = Study.query.filter_by(name=study, app=g.objfun_app).one_or_none()
     if not study:
-        logging.error(f'no study {study} for app {g.objfun_app.name}')
-        abort(404)
+        msg = f'no study {study} for app {g.objfun_app.name}'
+        logging.error(msg)
+        abort(404, msg)
     scenario = Scenario.query.filter_by(name=name, study=study).one_or_none()
     if not scenario:
-        logging.error(f'no scenario {scenario} for study {study}'
-                      f' for app {g.objfun_app.name}')
-        abort(404)
+        msg = (f'no scenario {scenario} for study {study}'
+               f' for app {g.objfun_app.name}')
+        logging.error(msg)
+        abort(404, msg)
 
     run = scenario.lookup_run(data)
     if isinstance(run, Run):
