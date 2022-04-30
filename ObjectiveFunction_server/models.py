@@ -2,6 +2,8 @@ from .application import db, app
 from itsdangerous import JSONWebSignatureSerializer as Serializer, BadSignature
 from passlib.apps import custom_app_context as pwd_context
 
+from .common import RunType
+
 
 class App(db.Model):
     __tablename__ = 'apps'
@@ -122,6 +124,7 @@ class Scenario(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String)
+    runtype = db.Column(db.Enum(RunType))
     study_id = db.Column(db.Integer, db.ForeignKey('studies.id'))
 
     study = db.relationship("Study", back_populates="scenarios")

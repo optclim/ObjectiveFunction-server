@@ -4,6 +4,7 @@ from .application import app, db
 from flask_httpauth import HTTPBasicAuth
 from flask import jsonify, request, abort, g
 from .models import App, Study, ParameterInt, ParameterFloat, Scenario
+from .common import RunType
 
 auth = HTTPBasicAuth()
 
@@ -128,27 +129,35 @@ def create_scenario(study):
     .. :quickref: create_scenario; create a new scenario for study
     :param name: name of the study
     :<json string name: the name of the scenario
-    :status 400: when name is missing
+    :status 400: when name or runtype is missing
     :status 404: when the study does not exist
     :status 409: when scenario already exists
     """
-    if not request.get_json() or 'name' not in request.get_json():
+    if not request.get_json():
         abort(400)
-    name = request.get_json()['name']
+    data = request.get_json()
+    for p in ['name', 'runtype']:
+        if p not in data:
+            abort(400)
+    try:
+        runtype = RunType.__members__[data['runtype']]
+    except KeyError:
+        logging.error(f'wrong run type {data["runtype"]}')
+        abort(400)
 
     study = Study.query.filter_by(name=study,
                                   app=g.objfun_app).one_or_none()
     if not study:
-        logging.error(f'no study {name} for app {g.objfun_app.name}')
+        logging.error(f'no study {data["name"]} for app {g.objfun_app.name}')
         abort(404)
 
     # check if scenario already exists
     scenario = Scenario.query.filter_by(
-        study=study, name=name).one_or_none()
+        study=study, name=data['name']).one_or_none()
     if scenario:
         abort(409)
 
-    scenario = Scenario(study=study, name=name)
+    scenario = Scenario(study=study, name=data['name'], runtype=runtype)
     db.session.add(scenario)
     db.session.commit()
 
