@@ -57,10 +57,10 @@ def create_study():
     :status 409: when study already exists
     """
     if not request.get_json():
-        abort(400)
+        abort(400, 'json missing')
     for p in ['name', 'parameters']:
         if p not in request.get_json():
-            abort(400)
+            abort(400, f'{p} missing from json')
 
     data = request.get_json()
     study = Study(name=data['name'], app=g.objfun_app)
@@ -74,8 +74,9 @@ def create_study():
                            minv=param['minv'], maxv=param['maxv'],
                            resolution=param['resolution'])
         else:
-            logging.error(f'unknown parameter type {param["type"]}')
-            abort(400)
+            msg = f'unknown parameter type {param["type"]}'
+            logging.error(msg)
+            abort(400, msg)
     db.session.add(study)
     db.session.commit()
 
@@ -94,8 +95,9 @@ def get_study(name):
     """
     study = Study.query.filter_by(name=name, app=g.objfun_app).first()
     if not study:
-        logging.error(f'no study {name} for app {g.objfun_app.name}')
-        abort(404)
+        msg = f'no study {name} for app {g.objfun_app.name}'
+        logging.error(msg)
+        abort(404, msg)
 
     return jsonify(study.to_dict), 200
 
@@ -112,8 +114,9 @@ def get_study_params(name):
     """
     study = Study.query.filter_by(name=name, app=g.objfun_app).one_or_none()
     if not study:
-        logging.error(f'no study {name} for app {g.objfun_app.name}')
-        abort(404)
+        msg = f'no study {name} for app {g.objfun_app.name}'
+        logging.error(msg)
+        abort(404, msg)
 
     params = {}
     for p in study.parameters:
@@ -134,28 +137,32 @@ def create_scenario(study):
     :status 409: when scenario already exists
     """
     if not request.get_json():
-        abort(400)
+        abort(400, 'json missing')
     data = request.get_json()
     for p in ['name', 'runtype']:
         if p not in data:
-            abort(400)
+            abort(400, f'{p} missing from json')
     try:
         runtype = RunType.__members__[data['runtype']]
     except KeyError:
-        logging.error(f'wrong run type {data["runtype"]}')
-        abort(400)
+        msg = f'wrong run type {data["runtype"]}'
+        logging.error(msg)
+        abort(400, msg)
 
     study = Study.query.filter_by(name=study,
                                   app=g.objfun_app).one_or_none()
     if not study:
-        logging.error(f'no study {data["name"]} for app {g.objfun_app.name}')
-        abort(404)
+        msg = f'no study {data["name"]} for app {g.objfun_app.name}'
+        logging.error(msg)
+        abort(404, msg)
 
     # check if scenario already exists
     scenario = Scenario.query.filter_by(
         study=study, name=data['name']).one_or_none()
     if scenario:
-        abort(409)
+        msg = f'scenario {data["name"]} already exists'
+        logging.warning(msg)
+        abort(409, msg)
 
     scenario = Scenario(study=study, name=data['name'], runtype=runtype)
     db.session.add(scenario)
@@ -175,8 +182,9 @@ def get_all_scenarios(study):
 
     study = Study.query.filter_by(name=study, app=g.objfun_app).one_or_none()
     if not study:
-        logging.error(f'no study {study} for app {g.objfun_app.name}')
-        abort(404)
+        msg = f'no study {study} for app {g.objfun_app.name}'
+        logging.error(msg)
+        abort(404, msg)
 
     results = []
     for scenario in study.scenarios:
@@ -199,13 +207,15 @@ def get_all_runs(study, name):
 
     study = Study.query.filter_by(name=study, app=g.objfun_app).one_or_none()
     if not study:
-        logging.error(f'no study {study} for app {g.objfun_app.name}')
-        abort(404)
+        msg = f'no study {study} for app {g.objfun_app.name}'
+        logging.error(msg)
+        abort(404, msg)
     scenario = Scenario.query.filter_by(name=name, study=study).one_or_none()
     if not scenario:
-        logging.error(f'no scenario {scenario} for study {study}'
-                      f' for app {g.objfun_app.name}')
-        abort(404)
+        msg = (f'no scenario {scenario} for study {study}'
+               f' for app {g.objfun_app.name}')
+        logging.error(msg)
+        abort(404, msg)
 
     results = []
     for run in scenario.runs:
@@ -228,7 +238,7 @@ def get_run(study, name):
     """
 
     if not request.get_json() or 'parameters' not in request.get_json():
-        abort(400)
+        abort(400, 'json missing')
     data = request.get_json()['parameters']
 
     study = Study.query.filter_by(name=study, app=g.objfun_app).one_or_none()
@@ -265,7 +275,7 @@ def lookup_run(study, name):
     """
 
     if not request.get_json() or 'parameters' not in request.get_json():
-        abort(400)
+        abort(400, 'json missing')
     data = request.get_json()['parameters']
 
     study = Study.query.filter_by(name=study, app=g.objfun_app).one_or_none()
