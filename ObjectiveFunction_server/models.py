@@ -151,6 +151,14 @@ class Scenario(db.Model):
                 'runtype': self.runtype.name,
                 'num_runs': len(self.runs)}
 
+    def get_run_by_id(self, runid):
+        """get a run with a particular id
+
+        :param runid: the run ID
+        """
+        return self._Run.query.filter_by(
+            scenario=self, id=runid).one_or_none()
+
     def get_run(self, parameters):
         """get a run for a particular parameter set
 
@@ -178,7 +186,7 @@ class Scenario(db.Model):
         if len(runid) == 0:
             raise LookupError("no entry for parameter set found")
         runid = int(runid.runid.iloc[0])
-        return self._Run.query.filter_by(id=runid).one()
+        return self.get_run_by_id(runid)
 
     def lookup_run(self, parameters):
         """look up run with a particular parameter set

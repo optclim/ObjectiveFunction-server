@@ -290,3 +290,26 @@ def lookup_run(study, name):
     else:
         result = {'status': run}
     return jsonify(result), 201
+
+
+@app.route(
+    '/api/studies/<string:study>/scenarios/<string:name>/runs/<int:runid>',
+    methods=['GET'])
+@auth.login_required
+def get_run_by_id(study, name, runid):
+    """get run info by id
+    """
+
+    try:
+        scenario = get_scenario(study, name)
+    except LookupError as e:
+        logging.error(e)
+        abort(404, str(e))
+
+    run = scenario.get_run_by_id(runid)
+    if run is None:
+        msg = f'no run with ID {runid} for scenario {name} of study {study}'
+        logging.error(msg)
+        abort(404, msg)
+
+    return jsonify(run.to_dict), 200
