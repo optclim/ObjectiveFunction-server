@@ -162,3 +162,88 @@ def create_scenario(study):
     db.session.commit()
 
     return '', 201
+
+@app.route('/api/studies/<string:study>/scenarios',
+           methods=['GET'])
+@auth.login_required
+def get_all_scenarios(study):
+    """get a list of all scenarios of a study
+    .. :quickref: studies; get a list of all studies
+    :param study: name of the study
+    :status 404: when the scenario does not exist
+    """
+
+    study = Study.query.filter_by(name=study, app=g.objfun_app).one_or_none()
+    if not study:
+        logging.error(f'no study {study} for app {g.objfun_app.name}')
+        abort(404)
+
+    results = []
+    for scenario in study.scenarios:
+        results.append(scenario.to_dict)
+    return jsonify({'data': results}), 200
+
+
+@app.route('/api/studies/<string:study>/scenarios/<string:name>/runs',
+           methods=['GET'])
+@auth.login_required
+def get_all_runs(study, name):
+    """get all runs of a particular scenario
+    .. :quickref: studies; get information about a particular scenario
+    :param study: name of the study
+    :param name: name of the scenario
+    :type name: string
+    :status 404: when the scenario does not exist
+    :status 200: the call successfully returned a json string
+    """
+
+    study = Study.query.filter_by(name=study, app=g.objfun_app).one_or_none()
+    if not study:
+        logging.error(f'no study {study} for app {g.objfun_app.name}')
+        abort(404)
+    scenario = Scenario.query.filter_by(name=name, study=study).one_or_none()
+    if not scenario:
+        logging.error(f'no scenario {scenario} for study {study}'
+                      f' for app {g.objfun_app.name}')
+        abort(404)
+
+    results = []
+    for run in scenario.runs:
+        results.append(run.to_dict)
+    return jsonify({'data': results}), 200
+
+
+@app.route('/api/studies/<string:study>/scenarios/<string:name>/lookup_run',
+           methods=['POST'])
+@auth.login_required
+def lookup_run(study, name):
+    """lookup a run of a particular scenario
+    .. :quickref: studies; get information about a particular scenario
+    :param study: name of the study
+    :param name: name of the scenario
+    :type name: string
+    :status 400: when name or runtype is missing
+    :status 404: when the scenario does not exist
+    :status 201: the call successfully returned a json string
+    """
+
+    if not request.get_json():
+        abort(400)
+    data = request.get_json()
+
+    study = Study.query.filter_by(name=study, app=g.objfun_app).one_or_none()
+    if not study:
+        logging.error(f'no study {study} for app {g.objfun_app.name}')
+        abort(404)
+    scenario = Scenario.query.filter_by(name=name, study=study).one_or_none()
+    if not scenario:
+        logging.error(f'no scenario {scenario} for study {study}'
+                      f' for app {g.objfun_app.name}')
+        abort(404)
+
+    run = scenario.lookup_run(data)
+    if run is None:
+        result = {'state': 'waiting'}
+    else:
+        result = run.to_dict
+    return jsonify(result), 201
