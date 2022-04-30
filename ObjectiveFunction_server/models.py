@@ -204,17 +204,19 @@ class Scenario(db.Model):
                 logging.info('remove provisional parameter set')
                 db.session.delete(run)
                 db.session.commit()
-                return
+                return 'waiting'
 
             logging.info('new provisional parameter set')
             run = self._Run(self, parameters)
             run.state = LookupState.PROVISIONAL
             db.session.commit()
+            return 'provisional'
         else:
             if run.state == LookupState.PROVISIONAL:
                 logging.info('provisional parameter set changed to new')
                 run.state = LookupState.NEW
                 db.session.commit()
+                return 'new'
             elif run.state == LookupState.COMPLETED:
                 logging.debug('hit completed parameter set')
             else:

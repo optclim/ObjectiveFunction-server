@@ -3,7 +3,7 @@ import logging
 from .application import app, db
 from flask_httpauth import HTTPBasicAuth
 from flask import jsonify, request, abort, g
-from .models import App, Study, ParameterInt, ParameterFloat, Scenario
+from .models import App, Study, ParameterInt, ParameterFloat, Scenario, Run
 from .common import RunType
 
 auth = HTTPBasicAuth()
@@ -242,8 +242,8 @@ def lookup_run(study, name):
         abort(404)
 
     run = scenario.lookup_run(data)
-    if run is None:
-        result = {'state': 'waiting'}
-    else:
+    if isinstance(run, Run):
         result = run.to_dict
+    else:
+        result = {'status': run}
     return jsonify(result), 201
