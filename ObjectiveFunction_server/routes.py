@@ -9,6 +9,18 @@ from .common import RunType
 auth = HTTPBasicAuth()
 
 
+def get_scenario(study, scenario):
+    study = Study.query.filter_by(name=study, app=g.objfun_app).one_or_none()
+    if not study:
+        raise LookupError(f'no study {study} for app {g.objfun_app.name}')
+    scenario = Scenario.query.filter_by(
+        name=scenario, study=study).one_or_none()
+    if not scenario:
+        raise LookupError(f'no scenario {scenario} for study {study}'
+                          f' for app {g.objfun_app.name}')
+    return scenario
+
+
 @auth.verify_password
 def verify_password(name_or_token, password):
     # first try to authenticate by token
@@ -205,17 +217,11 @@ def get_all_runs(study, name):
     :status 200: the call successfully returned a json string
     """
 
-    study = Study.query.filter_by(name=study, app=g.objfun_app).one_or_none()
-    if not study:
-        msg = f'no study {study} for app {g.objfun_app.name}'
-        logging.error(msg)
-        abort(404, msg)
-    scenario = Scenario.query.filter_by(name=name, study=study).one_or_none()
-    if not scenario:
-        msg = (f'no scenario {scenario} for study {study}'
-               f' for app {g.objfun_app.name}')
-        logging.error(msg)
-        abort(404, msg)
+    try:
+        scenario = get_scenario(study, name)
+    except LookupError as e:
+        logging.error(e)
+        abort(404, str(e))
 
     results = []
     for run in scenario.runs:
@@ -241,17 +247,11 @@ def get_run(study, name):
         abort(400, 'json missing')
     data = request.get_json()['parameters']
 
-    study = Study.query.filter_by(name=study, app=g.objfun_app).one_or_none()
-    if not study:
-        msg = f'no study {study} for app {g.objfun_app.name}'
-        logging.error(msg)
-        abort(404, msg)
-    scenario = Scenario.query.filter_by(name=name, study=study).one_or_none()
-    if not scenario:
-        msg = (f'no scenario {scenario} for study {study}'
-               f' for app {g.objfun_app.name}')
-        logging.error(msg)
-        abort(404, msg)
+    try:
+        scenario = get_scenario(study, name)
+    except LookupError as e:
+        logging.error(e)
+        abort(404, str(e))
 
     try:
         run = scenario.get_run(data)
@@ -278,17 +278,11 @@ def lookup_run(study, name):
         abort(400, 'json missing')
     data = request.get_json()['parameters']
 
-    study = Study.query.filter_by(name=study, app=g.objfun_app).one_or_none()
-    if not study:
-        msg = f'no study {study} for app {g.objfun_app.name}'
-        logging.error(msg)
-        abort(404, msg)
-    scenario = Scenario.query.filter_by(name=name, study=study).one_or_none()
-    if not scenario:
-        msg = (f'no scenario {scenario} for study {study}'
-               f' for app {g.objfun_app.name}')
-        logging.error(msg)
-        abort(404, msg)
+    try:
+        scenario = get_scenario(study, name)
+    except LookupError as e:
+        logging.error(e)
+        abort(404, str(e))
 
     run = scenario.lookup_run(data)
     if isinstance(run, Run):
