@@ -4,7 +4,7 @@ from .application import app, db
 from flask_httpauth import HTTPBasicAuth
 from flask import jsonify, request, abort, g
 from .models import App, Study, ParameterInt, ParameterFloat, Scenario, Run
-from .common import RunType
+from .common import RunType, LookupState
 
 auth = HTTPBasicAuth()
 
@@ -315,3 +315,34 @@ def get_run_by_id(study, name, runid):
         abort(404, str(e))
 
     return jsonify(run.to_dict), 200
+
+
+@app.route(
+    '/api/studies/<string:study>/scenarios/<string:name>/runs/'
+    '<int:runid>/state',
+    methods=['GET', 'PUT'])
+@auth.login_required
+def run_state(study, name, runid):
+    try:
+        run = get_run(study, name, runid)
+    except LookupError as e:
+        logging.error(e)
+        abort(404, str(e))
+
+    if request.method == 'GET':
+        return jsonify({'state': run.state.name}), 200
+    elif request.method == 'PUT':
+        if not request.get_json():
+            abort(400, 'no json')
+        data = request.get_json()
+        if 'state' not in data:
+            abort(400, 'json does not contain state')
+        try:
+            state = LookupState.__members__[data['state']]
+        except KeyError:
+            msg = f'unkown state {data["state"]}'
+            logging.error(msg)
+            abort(400, msg)
+        run.state = state
+        db.session.commit()
+        return '', 201
