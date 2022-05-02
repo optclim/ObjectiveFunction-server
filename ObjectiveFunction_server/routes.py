@@ -21,6 +21,15 @@ def get_scenario(study, scenario):
     return scenario
 
 
+def get_run(study, scenario, runid):
+    scenario = get_scenario(study, scenario)
+    run = scenario.get_run_by_id(runid)
+    if run is None:
+        raise LookupError(
+            f'no run with ID {runid} for scenario {scenario} of study {study}')
+    return run
+
+
 @auth.verify_password
 def verify_password(name_or_token, password):
     # first try to authenticate by token
@@ -232,7 +241,7 @@ def get_all_runs(study, name):
 @app.route('/api/studies/<string:study>/scenarios/<string:name>/get_run',
            methods=['POST'])
 @auth.login_required
-def get_run(study, name):
+def get_run_by_params(study, name):
     """get a run of a particular scenario
     .. :quickref: studies; get information about a particular run
     :param study: name of the study
@@ -299,17 +308,10 @@ def lookup_run(study, name):
 def get_run_by_id(study, name, runid):
     """get run info by id
     """
-
     try:
-        scenario = get_scenario(study, name)
+        run = get_run(study, name, runid)
     except LookupError as e:
         logging.error(e)
         abort(404, str(e))
-
-    run = scenario.get_run_by_id(runid)
-    if run is None:
-        msg = f'no run with ID {runid} for scenario {name} of study {study}'
-        logging.error(msg)
-        abort(404, msg)
 
     return jsonify(run.to_dict), 200
