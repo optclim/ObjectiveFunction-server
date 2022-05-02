@@ -312,6 +312,49 @@ def lookup_run(study, name):
 
 
 @app.route(
+    '/api/studies/<string:study>/scenarios/<string:name>/runs/with_state',
+    methods=['POST'])
+@auth.login_required
+def get_run_with_state(study, name):  # noqa: 318
+    try:
+        data = check_json(request.get_json(), ['state'])
+    except RuntimeError as e:
+        abort(400, str(e))
+
+    try:
+        state = LookupState.__members__[data['state']]
+    except KeyError:
+        msg = f'unkown state {data["state"]}'
+        logging.error(msg)
+        abort(400, msg)
+    new_state = None
+    if 'new_state' in data:
+        try:
+            new_state = LookupState.__members__[data['new_state']]
+        except KeyError:
+            msg = f'unkown state {data["new_state"]}'
+            logging.error(msg)
+            abort(400, msg)
+
+    try:
+        scenario = get_scenario(study, name)
+    except LookupError as e:
+        logging.error(e)
+        abort(400, str(e))
+
+    try:
+        run = scenario.get_run_with_state(state, new_state)
+    except LookupError as e:
+        logging.error(e)
+        abort(404, str(e))
+
+    result = run.to_dict
+    result['values'] = run.values_to_dict
+
+    return jsonify(result), 201
+
+
+@app.route(
     '/api/studies/<string:study>/scenarios/<string:name>/runs/<int:runid>',
     methods=['GET'])
 @auth.login_required

@@ -231,6 +231,29 @@ class Scenario(db.Model):
                 logging.debug('hit new/active parameter set')
         return run
 
+    def get_run_with_state(self, state, new_state=None):
+        """get a set of parameters in a particular state
+
+        :param state: find run in state
+        :param new_state: when not None set the state of the run to new_state
+
+        Get a set of parameters for a run in a particular state. Optionally
+        the run transitions to new_state.
+        """
+        query = self._Run.query.filter_by(
+            scenario=self, state=state)
+        if new_state is not None:
+            query = query.with_for_update()
+        run = query.one_or_none()
+        if run is None:
+            raise LookupError(f'no parameter set in state {state.name}')
+
+        if new_state is not None:
+            run.state = new_state
+            db.session.commit()
+
+        return run
+
 
 class Run(db.Model):
     __tablename__ = 'runs'
@@ -259,6 +282,13 @@ class Run(db.Model):
     def to_dict(self):
         return {'id': self.id,
                 'state': self.state.name}
+
+    @property
+    def values_to_dict(self):
+        values = {}
+        for v in self.values:
+            values[v.parameter.name] = v.value
+        return values
 
 
 class RunMisfit(Run):
