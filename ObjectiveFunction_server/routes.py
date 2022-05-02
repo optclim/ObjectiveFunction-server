@@ -398,3 +398,34 @@ def run_state(study, name, runid):
         run.state = state
         db.session.commit()
         return '', 201
+
+
+@app.route(
+    '/api/studies/<string:study>/scenarios/<string:name>/runs/'
+    '<int:runid>/value',
+    methods=['GET', 'PUT'])
+@auth.login_required
+def run_value(study, name, runid):  # noqa: C901
+    try:
+        run = get_run(study, name, runid)
+    except LookupError as e:
+        logging.error(e)
+        abort(404, str(e))
+
+    if request.method == 'GET':
+        return jsonify(run.get_value()), 200
+    elif request.method == 'PUT':
+        try:
+            data = check_json(request.get_json())
+        except RuntimeError as e:
+            abort(400, str(e))
+        force = False
+        if 'force' in data:
+            force = data['force']
+        try:
+            run.set_value(data, force=force)
+        except KeyError as e:
+            abort(400, str(e))
+        except RuntimeError as e:
+            abort(403, str(e))
+        return '', 201

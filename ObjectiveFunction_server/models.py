@@ -290,6 +290,22 @@ class Run(db.Model):
             values[v.parameter.name] = v.value
         return values
 
+    def _set_value(self, value):
+        raise NotImplementedError
+
+    def set_value(self, value, force=False):
+        if (self.state.value > LookupState.CONFIGURED.value
+            and self.state != LookupState.COMPLETED) or force:  # noqa W503
+            self._set_value(value)
+            self.state = LookupState.COMPLETED
+            db.session.commit()
+        else:
+            raise RuntimeError(
+                f'parameter set is in wrong state {self.state}')
+
+    def get_value(self):
+        raise NotImplementedError
+
 
 class RunMisfit(Run):
     __tablename__ = 'runs_misfit'
@@ -306,6 +322,12 @@ class RunMisfit(Run):
         d['misfit'] = self.misfit
         return d
 
+    def _set_value(self, value):
+        self.misfit = value['misfit']
+
+    def get_value(self):
+        return {'misfit': self.misfit}
+
 
 class RunPath(Run):
     __tablename__ = 'runs_path'
@@ -321,6 +343,12 @@ class RunPath(Run):
         d = super().to_dict
         d['path'] = self.path
         return d
+
+    def _set_value(self, value):
+        self.path = value['path']
+
+    def get_value(self):
+        return {'path': self.path}
 
 
 class RunParameters(db.Model):
