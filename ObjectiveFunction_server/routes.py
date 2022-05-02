@@ -30,6 +30,15 @@ def get_run(study, scenario, runid):
     return run
 
 
+def check_json(data, required_keys=[]):
+    if not data:
+        raise RuntimeError('json missing')
+    for k in required_keys:
+        if k not in data:
+            raise RuntimeError(f'parameter {k} missing from json')
+    return data
+
+
 @auth.verify_password
 def verify_password(name_or_token, password):
     # first try to authenticate by token
@@ -77,13 +86,11 @@ def create_study():
     :status 400: when name or parameters is missing
     :status 409: when study already exists
     """
-    if not request.get_json():
-        abort(400, 'json missing')
-    for p in ['name', 'parameters']:
-        if p not in request.get_json():
-            abort(400, f'{p} missing from json')
+    try:
+        data = check_json(request.get_json(), ['name', 'parameters'])
+    except RuntimeError as e:
+        abort(400, str(e))
 
-    data = request.get_json()
     study = Study(name=data['name'], app=g.objfun_app)
     for p in data['parameters']:
         param = data['parameters'][p]
@@ -157,12 +164,11 @@ def create_scenario(study):
     :status 404: when the study does not exist
     :status 409: when scenario already exists
     """
-    if not request.get_json():
-        abort(400, 'json missing')
-    data = request.get_json()
-    for p in ['name', 'runtype']:
-        if p not in data:
-            abort(400, f'{p} missing from json')
+    try:
+        data = check_json(request.get_json(), ['name', 'runtype'])
+    except RuntimeError as e:
+        abort(400, str(e))
+
     try:
         runtype = RunType.__members__[data['runtype']]
     except KeyError:
@@ -252,9 +258,11 @@ def get_run_by_params(study, name):
     :status 201: the call successfully returned a json string
     """
 
-    if not request.get_json() or 'parameters' not in request.get_json():
-        abort(400, 'json missing')
-    data = request.get_json()['parameters']
+    try:
+        data = check_json(request.get_json(), ['parameters'])
+    except RuntimeError as e:
+        abort(400, str(e))
+    data = data['parameters']
 
     try:
         scenario = get_scenario(study, name)
@@ -283,9 +291,11 @@ def lookup_run(study, name):
     :status 201: the call successfully returned a json string
     """
 
-    if not request.get_json() or 'parameters' not in request.get_json():
-        abort(400, 'json missing')
-    data = request.get_json()['parameters']
+    try:
+        data = check_json(request.get_json(), ['parameters'])
+    except RuntimeError as e:
+        abort(400, str(e))
+    data = data['parameters']
 
     try:
         scenario = get_scenario(study, name)
@@ -332,11 +342,10 @@ def run_state(study, name, runid):
     if request.method == 'GET':
         return jsonify({'state': run.state.name}), 200
     elif request.method == 'PUT':
-        if not request.get_json():
-            abort(400, 'no json')
-        data = request.get_json()
-        if 'state' not in data:
-            abort(400, 'json does not contain state')
+        try:
+            data = check_json(request.get_json(), ['state'])
+        except RuntimeError as e:
+            abort(400, str(e))
         try:
             state = LookupState.__members__[data['state']]
         except KeyError:
