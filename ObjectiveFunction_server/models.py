@@ -205,7 +205,7 @@ class Scenario(db.Model):
         if run is None:
             # check if we already have a provisional entry
             run = self._Run.query.filter_by(
-                scenario=self, state=LookupState.PROVISIONAL).one_or_none()
+                scenario=self, state=LookupState.PROVISIONAL).first()
             if run is not None:
                 # we already have a provisional value
                 # delete the previous one and wait
@@ -244,7 +244,7 @@ class Scenario(db.Model):
             scenario=self, state=state)
         if new_state is not None:
             query = query.with_for_update()
-        run = query.one_or_none()
+        run = query.first()
         if run is None:
             raise LookupError(f'no parameter set in state {state.name}')
 
