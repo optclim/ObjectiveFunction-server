@@ -319,14 +319,14 @@ class RunMisfit(Run):
     @property
     def to_dict(self):
         d = super().to_dict
-        d['misfit'] = self.misfit
+        d['value'] = self.misfit
         return d
 
     def _set_value(self, value):
-        self.misfit = value['misfit']
+        self.misfit = value['value']
 
     def get_value(self):
-        return {'misfit': self.misfit}
+        return {'value': self.misfit}
 
 
 class RunPath(Run):
@@ -341,14 +341,14 @@ class RunPath(Run):
     @property
     def to_dict(self):
         d = super().to_dict
-        d['path'] = self.path
+        d['value'] = self.path
         return d
 
     def _set_value(self, value):
-        self.path = value['path']
+        self.path = value['value']
 
     def get_value(self):
-        return {'path': self.path}
+        return {'value': self.path}
 
 
 class RunParameters(db.Model):
