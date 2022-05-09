@@ -47,6 +47,8 @@ class Study(db.Model):
     app_id = db.Column(db.Integer, db.ForeignKey('apps.id'))
 
     app = db.relationship("App", back_populates="studies")
+    obsnames = db.relationship("ObsName", order_by="ObsName.name",
+                               back_populates="study")
     parameters = db.relationship("Parameter", order_by="Parameter.name",
                                  back_populates="study")
     scenarios = db.relationship("Scenario", back_populates="study")
@@ -61,6 +63,19 @@ class Study(db.Model):
             'name': self.name,
             'app': self.app.name,
             'num_scenarios': len(self.scenarios)}
+
+
+class ObsName(db.Model):
+    __tablename__ = 'obsnames'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String)
+    study_id = db.Column(db.Integer, db.ForeignKey('studies.id'))
+
+    study = db.relationship("Study", back_populates="obsnames")
+
+    __table_args__ = (
+        db.UniqueConstraint('name', 'study_id', name='_unique_params'), )
 
 
 class Parameter(db.Model):

@@ -4,6 +4,7 @@ from .application import app, db
 from flask_httpauth import HTTPBasicAuth
 from flask import jsonify, request, abort, g
 from .models import App, Study, ParameterInt, ParameterFloat, Scenario, Run
+from .models import ObsName
 from .common import RunType, LookupState
 
 auth = HTTPBasicAuth()
@@ -196,6 +197,54 @@ def create_scenario(study):
     db.session.commit()
 
     return '', 201
+
+
+@app.route('/api/studies/<string:study>/observation_names',
+           methods=['PUT', 'GET'])
+@auth.login_required
+def observation_names(study):
+    """get/set list of observation names of a study
+    :param study: name of the study
+    :status 404: when the scenario does not exist
+    """
+    study = Study.query.filter_by(name=study, app=g.objfun_app).one_or_none()
+    if not study:
+        msg = f'no study {study} for app {g.objfun_app.name}'
+        logging.error(msg)
+        abort(404, msg)
+
+    if request.method == 'GET':
+        obsnames = []
+        for o in study.obsnames:
+            obsnames.append(o.name)
+        return jsonify({'obsnames': obsnames}), 200
+    elif request.method == 'PUT':
+        try:
+            data = check_json(request.get_json(), ['obsnames'])
+        except RuntimeError as e:
+            abort(400, str(e))
+        obsnames = data['obsnames']
+        if len(study.obsnames) > 0:
+            # check names
+            if len(obsnames) != len(study.obsnames):
+                msg = 'number of observation names does not match'
+                logging.error(msg)
+                abort(404, msg)
+            error = False
+            for o in study.obsnames:
+                if o.name not in obsnames:
+                    logging.error(f'{o.name} missing')
+                    error = True
+            if error:
+                msg = 'observation names do not match'
+                logging.error(msg)
+                abort(404, msg)
+        else:
+            for o in obsnames:
+                db.session.add(ObsName(name=o, study=study))
+            db.session.commit()
+            return '', 201
+
 
 @app.route('/api/studies/<string:study>/scenarios',
            methods=['GET'])
