@@ -36,6 +36,30 @@ class App(db.Model):
         objfun_app = App.query.get(data['id'])
         return objfun_app
 
+    def get_study(self, study):
+        study = Study.query.filter_by(name=study, app=self).one_or_none()
+        if not study:
+            raise LookupError(f'no study {study} for app {self.name}')
+        return study
+
+    def get_scenario(self, study, scenario):
+        study = self.get_study(study)
+        scenario = Scenario.query.filter_by(
+            name=scenario, study=study).one_or_none()
+        if not scenario:
+            raise LookupError(f'no scenario {scenario} for study {study}'
+                              f' for app {self.name}')
+        return scenario
+
+    def get_run(self, study, scenario, runid):
+        scenario = self.get_scenario(study, scenario)
+        run = scenario.get_run_by_id(runid)
+        if run is None:
+            raise LookupError(
+                f'no run with ID {runid} for scenario {scenario} '
+                f'of study {study}')
+        return run
+
     studies = db.relationship("Study", back_populates="app")
 
 
@@ -63,6 +87,23 @@ class Study(db.Model):
             'name': self.name,
             'app': self.app.name,
             'num_scenarios': len(self.scenarios)}
+
+    def add_parameter(self, name, parameter):
+        if 'type' not in parameter:
+            raise RuntimeError('parameter does not contain type')
+        if parameter['type'] == 'int':
+            param = ParameterInt(
+                study=self, name=name,
+                minv=parameter['minv'], maxv=parameter['maxv'])
+        elif parameter['type'] == 'float':
+            param = ParameterFloat(
+                study=self, name=name,
+                minv=parameter['minv'], maxv=parameter['maxv'],
+                resolution=parameter['resolution'])
+        else:
+            raise RuntimeError(
+                f'unknown parameter type {parameter["type"]}')
+        return param
 
 
 class ObsName(db.Model):

@@ -3,32 +3,10 @@ import logging
 from .application import app, db
 from flask_httpauth import HTTPBasicAuth
 from flask import jsonify, request, abort, g
-from .models import App, Study, ParameterInt, ParameterFloat, Scenario, Run
-from .models import ObsName
+from .models import App, Study, Scenario, Run, ObsName
 from .common import RunType, LookupState
 
 auth = HTTPBasicAuth()
-
-
-def get_scenario(study, scenario):
-    study = Study.query.filter_by(name=study, app=g.objfun_app).one_or_none()
-    if not study:
-        raise LookupError(f'no study {study} for app {g.objfun_app.name}')
-    scenario = Scenario.query.filter_by(
-        name=scenario, study=study).one_or_none()
-    if not scenario:
-        raise LookupError(f'no scenario {scenario} for study {study}'
-                          f' for app {g.objfun_app.name}')
-    return scenario
-
-
-def get_run(study, scenario, runid):
-    scenario = get_scenario(study, scenario)
-    run = scenario.get_run_by_id(runid)
-    if run is None:
-        raise LookupError(
-            f'no run with ID {runid} for scenario {scenario} of study {study}')
-    return run
 
 
 def check_json(data, required_keys=[]):
@@ -93,19 +71,12 @@ def create_study():
         abort(400, str(e))
 
     study = Study(name=data['name'], app=g.objfun_app)
-    for p in data['parameters']:
-        param = data['parameters'][p]
-        if param['type'] == 'int':
-            ParameterInt(study=study, name=p,
-                         minv=param['minv'], maxv=param['maxv'])
-        elif param['type'] == 'float':
-            ParameterFloat(study=study, name=p,
-                           minv=param['minv'], maxv=param['maxv'],
-                           resolution=param['resolution'])
-        else:
-            msg = f'unknown parameter type {param["type"]}'
-            logging.error(msg)
-            abort(400, msg)
+    for pname in data['parameters']:
+        try:
+            study.add_parameter(pname, data['parameters'][pname])
+        except RuntimeError as e:
+            logging.error(e)
+            abort(400, str(e))
     db.session.add(study)
     db.session.commit()
 
@@ -122,11 +93,11 @@ def get_study(name):
     :status 404: when the study does not exist
     :status 200: the call successfully returned a json string
     """
-    study = Study.query.filter_by(name=name, app=g.objfun_app).first()
-    if not study:
-        msg = f'no study {name} for app {g.objfun_app.name}'
-        logging.error(msg)
-        abort(404, msg)
+    try:
+        study = g.objfun_app.get_study(name)
+    except LookupError as e:
+        logging.error(e)
+        abort(404, str(e))
 
     return jsonify(study.to_dict), 200
 
@@ -141,11 +112,11 @@ def get_study_params(name):
     :status 404: when the study does not exist
     :status 200: the call successfully returned a json string
     """
-    study = Study.query.filter_by(name=name, app=g.objfun_app).one_or_none()
-    if not study:
-        msg = f'no study {name} for app {g.objfun_app.name}'
-        logging.error(msg)
-        abort(404, msg)
+    try:
+        study = g.objfun_app.get_study(name)
+    except LookupError as e:
+        logging.error(e)
+        abort(404, str(e))
 
     params = {}
     for p in study.parameters:
@@ -177,12 +148,11 @@ def create_scenario(study):
         logging.error(msg)
         abort(400, msg)
 
-    study = Study.query.filter_by(name=study,
-                                  app=g.objfun_app).one_or_none()
-    if not study:
-        msg = f'no study {data["name"]} for app {g.objfun_app.name}'
-        logging.error(msg)
-        abort(404, msg)
+    try:
+        study = g.objfun_app.get_study(study)
+    except LookupError as e:
+        logging.error(e)
+        abort(404, str(e))
 
     # check if scenario already exists
     scenario = Scenario.query.filter_by(
@@ -207,11 +177,11 @@ def observation_names(study):
     :param study: name of the study
     :status 404: when the scenario does not exist
     """
-    study = Study.query.filter_by(name=study, app=g.objfun_app).one_or_none()
-    if not study:
-        msg = f'no study {study} for app {g.objfun_app.name}'
-        logging.error(msg)
-        abort(404, msg)
+    try:
+        study = g.objfun_app.get_study(study)
+    except LookupError as e:
+        logging.error(e)
+        abort(404, str(e))
 
     if request.method == 'GET':
         obsnames = []
@@ -256,11 +226,11 @@ def get_all_scenarios(study):
     :status 404: when the scenario does not exist
     """
 
-    study = Study.query.filter_by(name=study, app=g.objfun_app).one_or_none()
-    if not study:
-        msg = f'no study {study} for app {g.objfun_app.name}'
-        logging.error(msg)
-        abort(404, msg)
+    try:
+        study = g.objfun_app.get_study(study)
+    except LookupError as e:
+        logging.error(e)
+        abort(404, str(e))
 
     results = []
     for scenario in study.scenarios:
@@ -282,7 +252,7 @@ def get_all_runs(study, name):
     """
 
     try:
-        scenario = get_scenario(study, name)
+        scenario = g.objfun_app.get_scenario(study, name)
     except LookupError as e:
         logging.error(e)
         abort(404, str(e))
@@ -314,7 +284,7 @@ def get_run_by_params(study, name):
     data = data['parameters']
 
     try:
-        scenario = get_scenario(study, name)
+        scenario = g.objfun_app.get_scenario(study, name)
     except LookupError as e:
         logging.error(e)
         abort(404, str(e))
@@ -347,7 +317,7 @@ def lookup_run(study, name):
     data = data['parameters']
 
     try:
-        scenario = get_scenario(study, name)
+        scenario = g.objfun_app.get_scenario(study, name)
     except LookupError as e:
         logging.error(e)
         abort(404, str(e))
@@ -386,7 +356,7 @@ def get_run_with_state(study, name):  # noqa: 318
             abort(400, msg)
 
     try:
-        scenario = get_scenario(study, name)
+        scenario = g.objfun_app.get_scenario(study, name)
     except LookupError as e:
         logging.error(e)
         abort(400, str(e))
@@ -411,7 +381,7 @@ def get_run_by_id(study, name, runid):
     """get run info by id
     """
     try:
-        run = get_run(study, name, runid)
+        run = g.objfun_app.get_run(study, name, runid)
     except LookupError as e:
         logging.error(e)
         abort(404, str(e))
@@ -426,7 +396,7 @@ def get_run_by_id(study, name, runid):
 @auth.login_required
 def run_state(study, name, runid):
     try:
-        run = get_run(study, name, runid)
+        run = g.objfun_app.get_run(study, name, runid)
     except LookupError as e:
         logging.error(e)
         abort(404, str(e))
@@ -456,7 +426,7 @@ def run_state(study, name, runid):
 @auth.login_required
 def run_value(study, name, runid):  # noqa: C901
     try:
-        run = get_run(study, name, runid)
+        run = g.objfun_app.get_run(study, name, runid)
     except LookupError as e:
         logging.error(e)
         abort(404, str(e))
