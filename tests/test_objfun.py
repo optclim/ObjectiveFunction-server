@@ -3,8 +3,9 @@ from unittest import TestCase
 import base64
 
 from ObjectiveFunction_server import app, db
-from ObjectiveFunction_server.models import App, Study, Scenario
-from ObjectiveFunction_server.common import RunType
+from ObjectiveFunction_server.models import App, Study, Scenario, ObsName
+from ObjectiveFunction_server.models import RunMisfit, RunPath
+from ObjectiveFunction_server.common import RunType, LookupState
 from ObjectiveFunction_server.routes import check_json
 
 # test data
@@ -21,6 +22,8 @@ param_int = {'type': 'int',
 test_parameters = {'paramA': param_float, 'paramB': param_int}
 scenario_misfit_name = 'scenario misfit'
 scenario_path_name = 'scenario path'
+run_misfit = ({'paramA': 0, 'paramB': 50}, 10.)
+run_path = ({'paramA': 0, 'paramB': 50}, '/some/path')
 
 headers = {}
 headers['Authorization'] = 'Basic ' + base64.b64encode(
@@ -125,6 +128,13 @@ class ObjFunModel(ObjFunBase):
         param = st.add_parameter('test_p', param_float)
         self.assertEqual(param.to_dict, param_float)
 
+    def test_obsname(self):
+        obsname = 'obs_test'
+        st = Study(name='test', app=self.get_app())
+        obs = ObsName(name=obsname, study=st)
+        self.assertEqual(obs.name, obsname)
+        self.assertEqual(obs.study, st)
+
     def test_get_scenario_fail_no_scenario(self):
         with self.assertRaises(LookupError):
             self.get_app().get_scenario(
@@ -144,3 +154,33 @@ class ObjFunModel(ObjFunBase):
              'name': scenario_misfit_name,
              'runtype': RunType.MISFIT.name,
              'num_runs': 0})
+
+    def check_run(self, runObj, data):
+        scenario = self.get_app().get_scenario(
+            study_name, scenario_misfit_name)
+        run = runObj(scenario, data[0])
+        self.assertEqual(run.values_to_dict, data[0])
+
+        # these should fail because run is in wrong state
+        for state in [LookupState.NEW, LookupState.COMPLETED]:
+            run.state = state
+            with self.assertRaises(RuntimeError):
+                run.set_value(data[1])
+        # set state to ACTIVE
+        run.state = LookupState.ACTIVE
+        run.set_value({'value': data[1]})
+        self.assertEqual(run.state, LookupState.COMPLETED)
+        self.assertEqual(run.get_value(), {'value': data[1]})
+        self.assertEqual(
+            run.to_dict,
+            {'id': run.id,
+             'state': LookupState.COMPLETED.name,
+             'value': data[1]})
+        # we can also force setting a value
+        run.set_value({'value': data[1]}, force=True)
+
+    def test_run_misfit(self):
+        self.check_run(RunMisfit, run_misfit)
+
+    def test_run_path(self):
+        self.check_run(RunPath, run_path)
