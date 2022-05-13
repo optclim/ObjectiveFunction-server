@@ -58,6 +58,14 @@ class ObjFunBase(FlaskTestCase):
         a = App(name=app_name)
         a.hash_password(passwd)
         db.session.add(a)
+        # create study
+        st = Study(name=study_name, app=self.get_app())
+        # and some parameters
+        for p in test_parameters:
+            st.add_parameter(p, test_parameters[p])
+        # add scenarios
+        Scenario(name=scenario_misfit_name, runtype=RunType.MISFIT, study=st)
+        Scenario(name=scenario_path_name, runtype=RunType.PATH, study=st)
         db.session.commit()
 
     def tearDown(self):
@@ -70,18 +78,6 @@ class ObjFunBase(FlaskTestCase):
 
 
 class ObjFunModel(ObjFunBase):
-    def setUp(self):
-        super().setUp()
-
-        # create study
-        st = Study(name=study_name, app=self.get_app())
-        # and some parameters
-        for p in test_parameters:
-            st.add_parameter(p, test_parameters[p])
-        # add scenarios
-        Scenario(name=scenario_misfit_name, runtype=RunType.MISFIT, study=st)
-        Scenario(name=scenario_path_name, runtype=RunType.PATH, study=st)
-        db.session.commit()
 
     def test_app(self):
         a = 'test2'
@@ -184,3 +180,158 @@ class ObjFunModel(ObjFunBase):
 
     def test_run_path(self):
         self.check_run(RunPath, run_path)
+
+
+class ObjFunRoutes(ObjFunBase):
+
+    def test_get_auth_token(self):
+        response = self.app.get('/api/token', headers=headers)
+        self.assertEqual(response.status_code, 200)
+
+    def test_auth_with_token(self):
+        response = self.app.get('/api/token', headers=headers)
+        token = response.get_json()['token']
+
+        h = {}
+        h['Authorization'] = 'Basic ' + base64.b64encode(
+            token.encode('utf-8') + b': ').decode('utf-8')
+        h['Content-Type'] = 'application/json'
+        h['Accept'] = 'application/json'
+
+        response = self.app.get('/api/token', headers=h)
+        self.assertEqual(response.status_code, 200)
+
+    def test_get_all_studies(self):
+        response = self.app.get('/api/studies', headers=headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json, {'data': [{'id': 1,
+                                      'name': study_name,
+                                      'app': app_name,
+                                      'num_scenarios': 2}]})
+
+    def test_create_study_fail(self):
+        response = self.app.post(
+            '/api/create_study', json={}, headers=headers)
+        self.assertEqual(response.status_code, 400)
+
+    def test_create_study(self):
+        response = self.app.post(
+            '/api/create_study',
+            json={'name': 'some_study', 'parameters': test_parameters},
+            headers=headers)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(
+            response.json,
+            {'id': 2,
+             'name': 'some_study',
+             'app': app_name,
+             'num_scenarios': 0})
+
+    def test_get_study_fail(self):
+        response = self.app.get('/api/studies/' + 'no_study', headers=headers)
+        self.assertEqual(response.status_code, 404)
+
+    def test_get_study(self):
+        response = self.app.get(f'/api/studies/{study_name}', headers=headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json, {'id': 1,
+                            'name': study_name,
+                            'app': app_name,
+                            'num_scenarios': 2})
+
+    def test_get_study_params(self):
+        response = self.app.get(
+            f'/api/studies/{study_name}/parameters', headers=headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json, test_parameters)
+
+    def test_create_scenario_fail_wrong_json(self):
+        response = self.app.post(
+            f'/api/studies/{study_name}/create_scenario',
+            json={}, headers=headers)
+        self.assertEqual(response.status_code, 400)
+
+    def test_create_scenario_fail_wrong_runtype(self):
+        response = self.app.post(
+            f'/api/studies/{study_name}/create_scenario',
+            json={'name': 'test', 'runtype': 'wrong'}, headers=headers)
+        self.assertEqual(response.status_code, 400)
+
+    def test_create_scenario_exists(self):
+        response = self.app.post(
+            f'/api/studies/{study_name}/create_scenario',
+            json={'name': scenario_misfit_name, 'runtype': 'MISFIT'},
+            headers=headers)
+        self.assertEqual(response.status_code, 409)
+
+    def test_create_scenario(self):
+        response = self.app.post(
+            f'/api/studies/{study_name}/create_scenario',
+            json={'name': 'new scenario', 'runtype': 'MISFIT'},
+            headers=headers)
+        self.assertEqual(response.status_code, 201)
+
+    def test_get_observation_names(self):
+        obsname = 'obsA'
+        st = Study(name='test', app=self.get_app())
+        ObsName(name=obsname, study=st)
+        db.session.commit()
+        response = self.app.get(
+            '/api/studies/test/observation_names',
+            headers=headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json, {'obsnames': [obsname]})
+
+    def test_put_observation_names_fail_wrong_json(self):
+        response = self.app.put(
+            f'/api/studies/{study_name}/observation_names',
+            json={},
+            headers=headers)
+        self.assertEqual(response.status_code, 400)
+
+    def test_put_observation_names_fail_wrong_num(self):
+        obsname = 'obsA'
+        st = Study(name='test', app=self.get_app())
+        ObsName(name=obsname, study=st)
+        db.session.commit()
+        response = self.app.put(
+            '/api/studies/test/observation_names',
+            json={'obsnames': ['obA', 'obB']},
+            headers=headers)
+        self.assertEqual(response.status_code, 404)
+
+    def test_put_observation_names_fail_wrong_obs(self):
+        obsname = 'obsA'
+        st = Study(name='test', app=self.get_app())
+        ObsName(name=obsname, study=st)
+        db.session.commit()
+        response = self.app.put(
+            '/api/studies/test/observation_names',
+            json={'obsnames': ['obsB']},
+            headers=headers)
+        self.assertEqual(response.status_code, 404)
+
+    def test_put_observation_names(self):
+        response = self.app.put(
+            f'/api/studies/{study_name}/observation_names',
+            json={'obsnames': ['obsA', 'obsB']},
+            headers=headers)
+        self.assertEqual(response.status_code, 201)
+
+    def test_get_all_scenarioes(self):
+        response = self.app.get(
+            f'/api/studies/{study_name}/scenarios',
+            headers=headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json, {'data': [
+                {'study': study_name,
+                 'name': scenario_misfit_name,
+                 'runtype': RunType.MISFIT.name,
+                 'num_runs': 0},
+                {'study': study_name,
+                 'name': scenario_path_name,
+                 'runtype': RunType.PATH.name,
+                 'num_runs': 0}]})
