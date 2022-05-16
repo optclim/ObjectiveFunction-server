@@ -1,3 +1,4 @@
 *~
 ObjectiveFunction_server/app.db
 __pycache__
+.coverage
