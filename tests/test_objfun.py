@@ -37,7 +37,7 @@ class CheckJson(TestCase):
 
     def test_check_json_missing_key(self):
         with self.assertRaises(RuntimeError):
-            check_json({}, required_keys=['not', 'here'])
+            check_json({'hello': 'test'}, required_keys=['not', 'here'])
 
 
 class ObjFunBase(FlaskTestCase):
@@ -215,6 +215,15 @@ class ObjFunRoutes(ObjFunBase):
             '/api/create_study', json={}, headers=headers)
         self.assertEqual(response.status_code, 400)
 
+    def test_create_study_fail_parameter(self):
+        params = dict(test_parameters)
+        params['paramC'] = {'type': 'wrong'}
+        response = self.app.post(
+            '/api/create_study',
+            json={'name': 'some_study', 'parameters': params},
+            headers=headers)
+        self.assertEqual(response.status_code, 400)
+
     def test_create_study(self):
         response = self.app.post(
             '/api/create_study',
@@ -241,11 +250,22 @@ class ObjFunRoutes(ObjFunBase):
                             'app': app_name,
                             'num_scenarios': 2})
 
+    def test_get_study_params_fail_no_study(self):
+        response = self.app.get(
+            f'/api/studies/wrong_study/parameters', headers=headers)
+        self.assertEqual(response.status_code, 404)
+
     def test_get_study_params(self):
         response = self.app.get(
             f'/api/studies/{study_name}/parameters', headers=headers)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json, test_parameters)
+
+    def test_create_scenario_fail_no_study(self):
+        response = self.app.post(
+            f'/api/studies/wrong_study/create_scenario',
+            json={'name': 'test', 'runtype': 'MISFIT'}, headers=headers)
+        self.assertEqual(response.status_code, 404)
 
     def test_create_scenario_fail_wrong_json(self):
         response = self.app.post(
@@ -272,6 +292,12 @@ class ObjFunRoutes(ObjFunBase):
             json={'name': 'new scenario', 'runtype': 'MISFIT'},
             headers=headers)
         self.assertEqual(response.status_code, 201)
+
+    def test_get_observation_names_fail_no_study(self):
+        response = self.app.get(
+            '/api/studies/wrong_study/observation_names',
+            headers=headers)
+        self.assertEqual(response.status_code, 404)
 
     def test_get_observation_names(self):
         obsname = 'obsA'
@@ -320,6 +346,12 @@ class ObjFunRoutes(ObjFunBase):
             headers=headers)
         self.assertEqual(response.status_code, 201)
 
+    def test_get_all_scenarioes_fail_no_study(self):
+        response = self.app.get(
+            f'/api/studies/wrong_study/scenarios',
+            headers=headers)
+        self.assertEqual(response.status_code, 404)
+
     def test_get_all_scenarioes(self):
         response = self.app.get(
             f'/api/studies/{study_name}/scenarios',
@@ -335,3 +367,69 @@ class ObjFunRoutes(ObjFunBase):
                  'name': scenario_path_name,
                  'runtype': RunType.PATH.name,
                  'num_runs': 0}]})
+
+    def test_get_all_runs_fail_no_study(self):
+        response = self.app.get(
+            f'/api/studies/wrong_study/scenarios/{scenario_misfit_name}/runs',
+            headers=headers)
+        self.assertEqual(response.status_code, 404)
+
+    def test_get_all_runs_fail_no_scenario(self):
+        response = self.app.get(
+            f'/api/studies/{study_name}/scenarios/wrong_scenario/runs',
+            headers=headers)
+        self.assertEqual(response.status_code, 404)
+
+
+class ObjFunRoutesRuns(ObjFunBase):
+
+    def setUp(self):
+        super().setUp()
+        scenario = self.get_app().get_scenario(
+            study_name, scenario_misfit_name)
+        run = RunMisfit(scenario, run_misfit[0])
+        run.state = LookupState.COMPLETED
+        run.misfit = run_misfit[1]
+        db.session.commit()
+
+    def test_get_all_runs(self):
+        response = self.app.get(
+            f'/api/studies/{study_name}/scenarios/{scenario_misfit_name}/runs',
+            headers=headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json,
+            {'data': [{'id': 1,
+                       'state': LookupState.COMPLETED.name,
+                       'value': run_misfit[1]}]})
+
+    def test_get_run_by_params_fail_wrong_json(self):
+        response = self.app.post(
+            f'/api/studies/{study_name}/scenarios/{scenario_misfit_name}/'
+            'get_run', json={}, headers=headers)
+        self.assertEqual(response.status_code, 400)
+
+    def test_get_run_by_params_fail_no_study(self):
+        response = self.app.post(
+            f'/api/studies/wrong_study/scenarios/{scenario_misfit_name}/'
+            'get_run', json={'parameters': 'blub'}, headers=headers)
+        self.assertEqual(response.status_code, 404)
+
+    def test_get_run_by_params_fail_wrong_params(self):
+        response = self.app.post(
+            f'/api/studies/{study_name}/scenarios/{scenario_misfit_name}/'
+            'get_run', json={'parameters': {'paramA': 1, 'paramB': 2}},
+            headers=headers)
+        self.assertEqual(response.status_code, 404)
+
+    def test_get_run_by_params(self):
+        response = self.app.post(
+            f'/api/studies/{study_name}/scenarios/{scenario_misfit_name}/'
+            'get_run', json={'parameters': run_misfit[0]},
+            headers=headers)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(
+            response.json,
+            {'id': 1,
+             'state': LookupState.COMPLETED.name,
+             'value': run_misfit[1]})
