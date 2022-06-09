@@ -18,6 +18,7 @@ setup(
         "itsdangerous",
         "passlib",
         "flask-httpauth",
+        "pandas",
     ],
     cmdclass={'build_sphinx': BuildDoc},
     command_options={
