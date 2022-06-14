@@ -17,7 +17,10 @@ class App(db.Model):
         return '<App {}>'.format(self.name)
 
     def hash_password(self, password):
-        self.password_hash = pwd_context.hash(password)
+        if hasattr(pwd_context, 'hash'):
+            self.password_hash = pwd_context.hash(password)
+        else:
+            self.password_hash = pwd_context.encrypt(password)
 
     def verify_password(self, password):
         return pwd_context.verify(password, self.password_hash)
