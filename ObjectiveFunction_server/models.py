@@ -78,7 +78,7 @@ class Study(db.Model):
     scenarios = db.relationship("Scenario", back_populates="study")
 
     __table_args__ = (
-        db.UniqueConstraint('name', 'app_id', name='_unique_params'), )
+        db.UniqueConstraint('name', 'app_id', name='_unique_studies'), )
 
     @property
     def to_dict(self):
@@ -116,7 +116,7 @@ class ObsName(db.Model):
     study = db.relationship("Study", back_populates="obsnames")
 
     __table_args__ = (
-        db.UniqueConstraint('name', 'study_id', name='_unique_params'), )
+        db.UniqueConstraint('name', 'study_id', name='_unique_obsnames'), )
 
 
 class Parameter(db.Model):
@@ -130,7 +130,7 @@ class Parameter(db.Model):
     study = db.relationship("Study", back_populates="parameters")
 
     __table_args__ = (
-        db.UniqueConstraint('name', 'study_id', name='_unique_params'), )
+        db.UniqueConstraint('name', 'study_id', name='_unique_parameters'), )
 
     __mapper_args__ = {
         'polymorphic_identity': 'parameter',
@@ -189,7 +189,7 @@ class Scenario(db.Model):
     runs = db.relationship("Run", back_populates="scenario")
 
     __table_args__ = (db.UniqueConstraint('name', 'study_id',
-                                          name='_unique_scenario'), )
+                                          name='_unique_scenarios'), )
 
     @property
     def _Run(self):
