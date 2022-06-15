@@ -261,6 +261,16 @@ class ObjFunRoutes(ObjFunBase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json, test_parameters)
 
+    def test_delete_study_fail(self):
+        response = self.app.delete(
+            f'/api/studies/no_such_study', headers=headers)
+        self.assertEqual(response.status_code, 404)
+
+    def test_delete_study(self):
+        response = self.app.delete(
+            f'/api/studies/{study_name}', headers=headers)
+        self.assertEqual(response.status_code, 200)
+
     def test_create_scenario_fail_no_study(self):
         response = self.app.post(
             f'/api/studies/wrong_study/create_scenario',
@@ -377,6 +387,24 @@ class ObjFunRoutes(ObjFunBase):
     def test_get_all_runs_fail_no_scenario(self):
         response = self.app.get(
             f'/api/studies/{study_name}/scenarios/wrong_scenario/runs',
+            headers=headers)
+        self.assertEqual(response.status_code, 404)
+
+    def test_delete_scenario(self):
+        response = self.app.delete(
+            f'/api/studies/{study_name}/scenarios/{scenario_misfit_name}',
+            headers=headers)
+        self.assertEqual(response.status_code, 200)
+
+    def test_delete_scenario_wrong_study(self):
+        response = self.app.delete(
+            f'/api/studies/wrong_study/scenarios/{scenario_misfit_name}',
+            headers=headers)
+        self.assertEqual(response.status_code, 404)
+
+    def test_delete_scenario_wrong_scenario(self):
+        response = self.app.delete(
+            f'/api/studies/{study_name}/scenarios/wrong_scenario',
             headers=headers)
         self.assertEqual(response.status_code, 404)
 

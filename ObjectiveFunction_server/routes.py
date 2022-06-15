@@ -83,10 +83,10 @@ def create_study():
     return jsonify(study.to_dict), 201
 
 
-@app.route('/api/studies/<string:name>', methods=['GET'])
+@app.route('/api/studies/<string:name>', methods=['GET', 'DELETE'])
 @auth.login_required
 def get_study(name):
-    """get information about a particular study
+    """get information about a particular study or delete a study
     .. :quickref: studies; get information about a particular study
     :param name: name of the study
     :type name: string
@@ -99,7 +99,13 @@ def get_study(name):
         logging.error(e)
         abort(404, str(e))
 
-    return jsonify(study.to_dict), 200
+    if request.method == 'GET':
+        res = jsonify(study.to_dict)
+    elif request.method == 'DELETE':
+        db.session.delete(study)
+        db.session.commit()
+        res = ''
+    return res, 200
 
 
 @app.route('/api/studies/<string:name>/parameters', methods=['GET'])
@@ -236,6 +242,30 @@ def get_all_scenarios(study):
     for scenario in study.scenarios:
         results.append(scenario.to_dict)
     return jsonify({'data': results}), 200
+
+
+@app.route('/api/studies/<string:study>/scenarios/<string:name>',
+           methods=['DELETE'])
+@auth.login_required
+def delete_scenario(study, name):
+    """delate a scenario including all associated runs
+    :param study: name of the study
+    :param name: name of the scenario
+    :type name: string
+    :status 404: when the scenario does not exist
+    :status 200: the call successfully deleted the scenario
+    """
+
+    try:
+        scenario = g.objfun_app.get_scenario(study, name)
+    except LookupError as e:
+        logging.error(e)
+        abort(404, str(e))
+
+    db.session.delete(scenario)
+    db.session.commit()
+
+    return '', 200
 
 
 @app.route('/api/studies/<string:study>/scenarios/<string:name>/runs',

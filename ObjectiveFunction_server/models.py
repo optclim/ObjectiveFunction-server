@@ -75,10 +75,13 @@ class Study(db.Model):
 
     app = db.relationship("App", back_populates="studies")
     obsnames = db.relationship("ObsName", order_by="ObsName.name",
-                               back_populates="study")
+                               back_populates="study",
+                               cascade="all, delete")
     parameters = db.relationship("Parameter", order_by="Parameter.name",
-                                 back_populates="study")
-    scenarios = db.relationship("Scenario", back_populates="study")
+                                 back_populates="study",
+                                 cascade="all, delete")
+    scenarios = db.relationship("Scenario", back_populates="study",
+                                cascade="all, delete")
 
     __table_args__ = (
         db.UniqueConstraint('name', 'app_id', name='_unique_studies'), )
@@ -143,7 +146,8 @@ class Parameter(db.Model):
 class ParameterInt(Parameter):
     __tablename__ = 'parameters_int'
 
-    id = db.Column(db.Integer, db.ForeignKey('parameters.id'),
+    id = db.Column(db.Integer, db.ForeignKey('parameters.id',
+                                             ondelete='CASCADE'),
                    primary_key=True)
     minv = db.Column(db.Integer)
     maxv = db.Column(db.Integer)
@@ -162,7 +166,8 @@ class ParameterInt(Parameter):
 class ParameterFloat(Parameter):
     __tablename__ = 'parameters_float'
 
-    id = db.Column(db.Integer, db.ForeignKey('parameters.id'),
+    id = db.Column(db.Integer, db.ForeignKey('parameters.id',
+                                             ondelete='CASCADE'),
                    primary_key=True)
     minv = db.Column(db.Float)
     maxv = db.Column(db.Float)
@@ -189,7 +194,8 @@ class Scenario(db.Model):
     study_id = db.Column(db.Integer, db.ForeignKey('studies.id'))
 
     study = db.relationship("Study", back_populates="scenarios")
-    runs = db.relationship("Run", back_populates="scenario")
+    runs = db.relationship("Run", back_populates="scenario",
+                           cascade="all, delete")
 
     __table_args__ = (db.UniqueConstraint('name', 'study_id',
                                           name='_unique_scenarios'), )
@@ -369,7 +375,8 @@ class Run(db.Model):
 class RunMisfit(Run):
     __tablename__ = 'runs_misfit'
 
-    id = db.Column(db.Integer, db.ForeignKey('runs.id'), primary_key=True)
+    id = db.Column(db.Integer, db.ForeignKey('runs.id', ondelete='CASCADE'),
+                   primary_key=True)
     misfit = db.Column(db.Float)
 
     __mapper_args__ = {
@@ -391,7 +398,8 @@ class RunMisfit(Run):
 class RunPath(Run):
     __tablename__ = 'runs_path'
 
-    id = db.Column(db.Integer, db.ForeignKey('runs.id'), primary_key=True)
+    id = db.Column(db.Integer, db.ForeignKey('runs.id', ondelete='CASCADE'),
+                   primary_key=True)
     path = db.Column(db.String)
 
     __mapper_args__ = {
