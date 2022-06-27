@@ -10,6 +10,12 @@ auth = HTTPBasicAuth()
 
 
 def check_json(data, required_keys=[]):
+    """check if json object valid
+
+    :param data: the json object to be checked
+    :param required_keys: list of keys that must be present in data object
+    :type required_keys: list
+    """
     if not data:
         raise RuntimeError('json missing')
     for k in required_keys:
@@ -35,7 +41,9 @@ def verify_password(name_or_token, password):
 @auth.login_required
 def get_auth_token():
     """get the authentication token
+
     .. :quickref: token; get the authentication token
+
     :>json string token: the authentication token
     """
     token = g.objfun_app.generate_auth_token()
@@ -46,9 +54,14 @@ def get_auth_token():
 @auth.login_required
 def get_all_studies():
     """get a list of all studies
+
     .. :quickref: studies; get a list of all studies
+
     :>jsonarr int id: study ID
     :>jsonarr string name: study name
+    :>jsonarr string app: app name
+    :>jsonarr int num_scenarios: the number of scenarios associated
+                                 with this study
     """
     results = []
     for study in g.objfun_app.studies:
@@ -60,10 +73,19 @@ def get_all_studies():
 @auth.login_required
 def create_study():
     """create a new study
+
     .. :quickref: create_study; create a new study
+
     :<json string name: the name of the study
+    :<json list parameters: a list of parameters associated with study
+    :>json int id: study ID
+    :>json string name: study name
+    :>json string app: app name
+    :>json int num_scenarios: the number of scenarios associated
+                                 with this study
     :status 400: when name or parameters is missing
     :status 409: when study already exists
+    :status 201: study was successfully created
     """
     try:
         data = check_json(request.get_json(), ['name', 'parameters'])
@@ -86,12 +108,31 @@ def create_study():
 @app.route('/api/studies/<string:name>', methods=['GET', 'DELETE'])
 @auth.login_required
 def get_study(name):
-    """get information about a particular study or delete a study
-    .. :quickref: studies; get information about a particular study
+    """
+    .. :quickref: studies; get study
+    .. http:get:: /api/studies/(string:name)
+
+    get information about a particular stud
+
     :param name: name of the study
     :type name: string
     :status 404: when the study does not exist
     :status 200: the call successfully returned a json string
+    :>json int id: study ID
+    :>json string name: study name
+    :>json string app: app name
+    :>json int num_scenarios: the number of scenarios associated
+                                 with this study
+
+    .. :quickref: studies; delete study
+    .. http:delete:: /api/studies/(string:name)
+
+    delete a study
+
+    :param name: name of the study
+    :type name: string
+    :status 404: when the study does not exist
+    :status 200: the study was successfully deleted
     """
     try:
         study = g.objfun_app.get_study(name)
@@ -111,8 +152,10 @@ def get_study(name):
 @app.route('/api/studies/<string:name>/parameters', methods=['GET'])
 @auth.login_required
 def get_study_params(name):
-    """get information about a particular study
-    .. :quickref: studies; get information about a particular study
+    """get study parameters
+
+    .. :quickref: studies; get study parameters
+
     :param name: name of the study
     :type name: string
     :status 404: when the study does not exist
@@ -134,13 +177,19 @@ def get_study_params(name):
 @app.route('/api/studies/<string:study>/create_scenario', methods=['POST'])
 @auth.login_required
 def create_scenario(study):
-    """create a new study
-    .. :quickref: create_scenario; create a new scenario for study
+    """create a new scenario
+
+    .. :quickref: studies; create a new scenario for study
+
     :param name: name of the study
+    :type name: string
+
     :<json string name: the name of the scenario
+    :<json string runtype: the type of scenrio, must be one of 'MISFIT', 'PATH'
     :status 400: when name or runtype is missing
     :status 404: when the study does not exist
     :status 409: when scenario already exists
+    :status 201: the scenario was successfully created
     """
     try:
         data = check_json(request.get_json(), ['name', 'runtype'])
@@ -180,8 +229,16 @@ def create_scenario(study):
 @auth.login_required
 def observation_names(study):
     """get/set list of observation names of a study
+
+    .. :quickref: studies; get/set list of observation names of a study
+
     :param study: name of the study
-    :status 404: when the scenario does not exist
+    :type study: string
+
+    :status 404: when the study does not exist or the observation names do
+                 not match
+    :status 200: list of observation names
+    :status 201: observation names were successfully added
     """
     try:
         study = g.objfun_app.get_study(study)
@@ -227,9 +284,13 @@ def observation_names(study):
 @auth.login_required
 def get_all_scenarios(study):
     """get a list of all scenarios of a study
+
     .. :quickref: studies; get a list of all studies
+
     :param study: name of the study
+    :type study: string
     :status 404: when the scenario does not exist
+    :status 200: studies
     """
 
     try:
@@ -249,7 +310,11 @@ def get_all_scenarios(study):
 @auth.login_required
 def delete_scenario(study, name):
     """delate a scenario including all associated runs
+
+    .. :quickref: scenarios; delete scenario
+
     :param study: name of the study
+    :type study: string
     :param name: name of the scenario
     :type name: string
     :status 404: when the scenario does not exist
@@ -273,8 +338,11 @@ def delete_scenario(study, name):
 @auth.login_required
 def get_all_runs(study, name):
     """get all runs of a particular scenario
-    .. :quickref: studies; get information about a particular scenario
+
+    .. :quickref: scenarios; get information about a particular scenario
+
     :param study: name of the study
+    :type study: string
     :param name: name of the scenario
     :type name: string
     :status 404: when the scenario does not exist
@@ -298,8 +366,11 @@ def get_all_runs(study, name):
 @auth.login_required
 def get_run_by_params(study, name):
     """get a run of a particular scenario
-    .. :quickref: studies; get information about a particular run
+
+    .. :quickref: scenarios; get information about a particular run
+
     :param study: name of the study
+    :type study: string
     :param name: name of the scenario
     :type name: string
     :status 400: when name or runtype is missing
@@ -331,8 +402,11 @@ def get_run_by_params(study, name):
 @auth.login_required
 def lookup_run(study, name):
     """lookup a run of a particular scenario
-    .. :quickref: studies; get information about a particular scenario
+
+    .. :quickref: scenarios; lookup run
+
     :param study: name of the study
+    :type study: string
     :param name: name of the scenario
     :type name: string
     :status 400: when name or runtype is missing
@@ -365,6 +439,20 @@ def lookup_run(study, name):
     methods=['POST'])
 @auth.login_required
 def get_run_with_state(study, name):  # noqa: 318
+    """get run in a particular state
+
+    .. :quickref: runs; get run in particular state
+
+    :param study: name of the study
+    :type study: string
+    :param name: name of the scenario
+    :type name: string
+    :<json string state: the state the run should be in
+    :<json string new_state: optionally, the new state the run will move to
+    :status 400: when name or runtype is missing
+    :status 404: when the scenario does not exist
+    :status 201: the call successfully returned a json string
+    """
     try:
         data = check_json(request.get_json(), ['state'])
     except RuntimeError as e:
@@ -409,6 +497,17 @@ def get_run_with_state(study, name):  # noqa: 318
 @auth.login_required
 def get_run_by_id(study, name, runid):
     """get run info by id
+
+    .. :quickref: runs; get run by ID
+
+    :param study: name of the study
+    :type study: string
+    :param name: name of the scenario
+    :type name: string
+    :param id: the run ID
+    :type id: int
+    :status 404: when the run does not exist
+    :status 200: json object containing run
     """
     try:
         run = g.objfun_app.get_run(study, name, runid)
@@ -425,6 +524,18 @@ def get_run_by_id(study, name, runid):
     methods=['GET', 'PUT'])
 @auth.login_required
 def run_state(study, name, runid):
+    """get/set run state
+
+    .. :quickref: runs; get/set run state
+
+    :param study: name of the study
+    :type study: string
+    :param name: name of the scenario
+    :type name: string
+    :param id: the run ID
+    :type id: int
+    :status 404: when the run does not exist
+    """
     try:
         run = g.objfun_app.get_run(study, name, runid)
     except LookupError as e:
@@ -455,6 +566,18 @@ def run_state(study, name, runid):
     methods=['GET', 'PUT'])
 @auth.login_required
 def run_value(study, name, runid):  # noqa: C901
+    """get/set run value
+
+    .. :quickref: runs; get/set run value
+
+    :param study: name of the study
+    :type study: string
+    :param name: name of the scenario
+    :type name: string
+    :param id: the run ID
+    :type id: int
+    :status 404: when the run does not exist
+    """
     try:
         run = g.objfun_app.get_run(study, name, runid)
     except LookupError as e:

@@ -1,6 +1,10 @@
-ObjectiveFunctioni-server API
-=============================
-.. automodule:: ObjectiveFunction_server
-   :imported-members:
-   :members:
+ObjectiveFunctioni-server REST API
+==================================
+.. qrefflask:: ObjectiveFunction_server:app
+   :undoc-static:
+
+.. autoflask:: ObjectiveFunction_server:app
+   :endpoints:
+   :undoc-static:
+   :order: path
 
