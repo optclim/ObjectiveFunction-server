@@ -46,7 +46,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'ObjectiveFunction-server'
-copyright = u'2021, Magnus Hagdorn'
+copyright = u'2022, Magnus Hagdorn'
 author = u'Magnus Hagdorn'
 
 # The version info for the project you're documenting, acts as replacement for
