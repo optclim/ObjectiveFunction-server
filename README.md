@@ -1,3 +1,5 @@
+[![Documentation Status](https://readthedocs.org/projects/objectivefunction-server/badge/?version=latest)](https://objectivefunction-server.readthedocs.io/en/latest/?badge=latest)
+
 # ObjectiveFunction-server
 
 ## testing
