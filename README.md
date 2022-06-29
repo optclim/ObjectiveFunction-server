@@ -1,4 +1,5 @@
 [![Documentation Status](https://readthedocs.org/projects/objectivefunction-server/badge/?version=latest)](https://objectivefunction-server.readthedocs.io/en/latest/?badge=latest)
+[![test ObjectiveFunction-server](https://github.com/optclim/ObjectiveFunction-server/actions/workflows/pythonapp.yml/badge.svg)](https://github.com/optclim/ObjectiveFunction-server/actions/workflows/pythonapp.yml)
 
 # ObjectiveFunction-server
 
